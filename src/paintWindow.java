@@ -1,3 +1,7 @@
+//TODO: fix scrolling
+//TODO: rubber banding
+//TODO: figure out why New doesn't work
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -6,12 +10,14 @@ import java.util.LinkedList;
 
 public class paintWindow {
 
-    public static LinkedList<JCanvas> canvases = new LinkedList<>();
-    public static JCanvas curr;
-    public static JCanvas prev;
-    public static JCanvas next;
-    public static int currIndex = 0;
+    private static LinkedList<JCanvas> canvases = new LinkedList<>();
+    private static JCanvas curr;
+    private static JCanvas prev;
+    private static JCanvas next;
+    private static int currIndex = 0;
+    public static int lineWidth = 5;
     public static String selectedButton = "Select";
+    public static Color chosenColor;
 
     private static void createAndShowGUI()  {
 
@@ -33,11 +39,9 @@ public class paintWindow {
         curr = contentArea;
         frame.getContentPane().add(contentArea, BorderLayout.CENTER);
 
-        // where to add the action listener??
 
         //make it scrollable
         JScrollPane scrollPane = new JScrollPane(contentArea, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
-        //scrollPane.setPreferredSize(new Dimension(frame.getWidth(), frame.getHeight()));
         frame.getContentPane().add(scrollPane, BorderLayout.CENTER);
 
 
@@ -74,13 +78,18 @@ public class paintWindow {
         // New
         JMenuItem newItem = new JMenuItem("New");
         newItem.addActionListener(new MyActionListener());
+        // CAN THERE NOT BE MULTIPLE ACTION LISTENERS? DID THE INTERNET LIE TO ME?
         newItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
+                System.out.println("got here");
+                frame.getContentPane().remove(curr);
                 JCanvas newCanvas = new JCanvas();
                 prev = curr;
                 curr = newCanvas;
                 currIndex += 1;
+                frame.getContentPane().add(curr, BorderLayout.CENTER);
+                curr.repaint();
             }
         });
 
@@ -93,6 +102,7 @@ public class paintWindow {
         deleteItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
+                frame.getContentPane().remove(curr);
                 if (prev == null) {
                     canvases.remove(curr);
                     curr = canvases.getFirst();
@@ -102,6 +112,8 @@ public class paintWindow {
                     curr = prev;
                     prev = canvases.get(currIndex - 1);
                 }
+                frame.getContentPane().add(curr, BorderLayout.CENTER);
+                curr.repaint();
             }
         });
 
@@ -134,6 +146,7 @@ public class paintWindow {
         nextItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
+                frame.getContentPane().remove(curr);
                 prev = curr;
                 curr = next;
                 currIndex += 1;
@@ -142,6 +155,8 @@ public class paintWindow {
                 } else {
                     next = null;
                 }
+                frame.getContentPane().add(curr, BorderLayout.CENTER);
+                curr.repaint();
             }
         });
         // Previous
@@ -153,6 +168,7 @@ public class paintWindow {
         previousItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
+                frame.getContentPane().remove(curr);
                 next = curr;
                 curr = prev;
                 currIndex -= 1;
@@ -161,6 +177,8 @@ public class paintWindow {
                 } else {
                     prev = null;
                 }
+                frame.getContentPane().add(curr, BorderLayout.CENTER);
+                curr.repaint();
             }
         });
         viewMenu.add(nextItem);
@@ -191,9 +209,8 @@ public class paintWindow {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
                 Color chosenColor = JColorChooser.showDialog(frame, "Choose a Color", Color.black);
-                // change JColorChooser as needed
                 if (chosenColor != null) {
-                    // change the color of the selected tool
+                    paintWindow.chosenColor = chosenColor;
                 }
             }
         });
@@ -215,9 +232,11 @@ public class paintWindow {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
 
-                Object[] options = {"Super Skinny", "Skinny", "Average", "Thicc", "Dummy Thicc"};
-                JOptionPane.showOptionDialog(frame, "", "Line Width", JOptionPane.DEFAULT_OPTION,
+                String[] options = {"Extra Thin", "Thin", "Average", "Thick", "Extra Thick"};
+                int lineWid = JOptionPane.showOptionDialog(frame, "", "Line Width", JOptionPane.DEFAULT_OPTION,
                         JOptionPane.PLAIN_MESSAGE, null, options, options[2]);
+                lineWidth = lineWid * 2 + 1;
+
             }
         });
         lineWidthButton.setAlignmentX(Component.CENTER_ALIGNMENT);

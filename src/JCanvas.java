@@ -2,7 +2,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.awt.MouseInfo;
 import java.awt.event.MouseMotionListener;
 import java.awt.geom.Ellipse2D;
 import java.util.LinkedList;
@@ -12,17 +11,14 @@ public class JCanvas extends JPanel {
 
     private LinkedList<Shape> displayList;
     private String selectedButton;
-    private static int lineWidth;
-    private Shape inProgressShape;
-    private boolean drawing = false;
     private ArrayList<Point> points = new ArrayList<>();
+    private boolean drawing = false;
 
     public JCanvas() {
         this.displayList = new LinkedList<>();
         this.selectedButton = paintWindow.selectedButton;
-        this.inProgressShape = null;
-        this.lineWidth = paintWindow.lineWidth;
         this.addMouseListener(new MouseListener() {
+
 
 
             @Override
@@ -34,9 +30,7 @@ public class JCanvas extends JPanel {
                 if (mouseEvent.getSource() instanceof JCanvas) {
                     ((JCanvas) mouseEvent.getSource()).setSelectedButton(paintWindow.selectedButton);
                 }
-                if (!drawing) {
-                    points = new ArrayList<>();
-                }
+                points = new ArrayList<>();
                 points.add(mouseEvent.getPoint());
                 drawing = true;
             }
@@ -64,6 +58,10 @@ public class JCanvas extends JPanel {
             @Override
             public void mouseDragged(MouseEvent mouseEvent) {
                 points.add(mouseEvent.getPoint());
+                if (!displayList.isEmpty()) {
+                    displayList.removeLast();
+                }
+                alterDisplayList(points);
             }
 
             @Override
@@ -124,21 +122,21 @@ public class JCanvas extends JPanel {
             g2.setStroke(new BasicStroke(s.lineWidth));
             g2.setColor(s.color);
             if (s instanceof Line) {
-                g2.drawLine(s.points.get(0).x, s.points.get(0).y, s.points.get(points.size()-1).x,
-                        s.points.get(points.size()-1).y);
+                g2.drawLine(s.points.get(0).x, s.points.get(0).y, s.points.get(s.points.size()-1).x,
+                        s.points.get(s.points.size()-1).y);
             }
             if (s instanceof Oval) {
-                g2.draw(new Ellipse2D.Double(Math.min(s.points.get(0).x, s.points.get(points.size()-1).x),
-                        Math.min(s.points.get(0).y, s.points.get(points.size()-1).y),
-                        Math.abs(s.points.get(points.size()-1).x-s.points.get(0).x),
-                        Math.abs(s.points.get(points.size()-1).y-s.points.get(0).y)));
+                g2.draw(new Ellipse2D.Double(Math.min(s.points.get(0).x, s.points.get(s.points.size()-1).x),
+                        Math.min(s.points.get(0).y, s.points.get(s.points.size()-1).y),
+                        Math.abs(s.points.get(s.points.size()-1).x-s.points.get(0).x),
+                        Math.abs(s.points.get(s.points.size()-1).y-s.points.get(0).y)));
                 //rubberbanding will be bounding rectangle
             }
             if (s instanceof Rectangle) {
-                g2.drawRect(Math.min(s.points.get(0).x, s.points.get(points.size()-1).x),
-                        Math.min(s.points.get(0).y, s.points.get(points.size()-1).y),
-                        Math.abs(s.points.get(points.size()-1).x-s.points.get(0).x),
-                        Math.abs(s.points.get(points.size()-1).y-s.points.get(0).y));
+                g2.drawRect(Math.min(s.points.get(0).x, s.points.get(s.points.size()-1).x),
+                        Math.min(s.points.get(0).y, s.points.get(s.points.size()-1).y),
+                        Math.abs(s.points.get(s.points.size()-1).x-s.points.get(0).x),
+                        Math.abs(s.points.get(s.points.size()-1).y-s.points.get(0).y));
             }
             if (s instanceof FreeFormMonstrosity) {
                 for (int i = 0; i < s.points.size() - 2; i++)

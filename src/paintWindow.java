@@ -1,6 +1,6 @@
 //TODO: fix scrolling
-//TODO: rubber banding
 //TODO: figure out why New doesn't work
+//TODO: text boxes!!!
 
 import javax.swing.*;
 import java.awt.*;
@@ -34,6 +34,8 @@ public class paintWindow {
 
         //Main content panel
         JCanvas contentArea = new JCanvas();
+        contentArea.setLayout(new BorderLayout());
+        contentArea.setMaximumSize(new Dimension(1000000, 1000000));
         contentArea.setBackground(Color.white);
         canvases.add(contentArea);
         curr = contentArea;
@@ -274,6 +276,7 @@ public class paintWindow {
 
 
         frame.getContentPane().add(toolPalette, BorderLayout.WEST);
+        contentArea.setPreferredSize(new Dimension(frame.getWidth(), frame.getHeight()));
 
 
         // pack() causes the size of the frame to be set just large enough to contain its

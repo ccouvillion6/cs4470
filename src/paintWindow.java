@@ -1,5 +1,4 @@
 //TODO: fix scrolling
-//TODO: figure out why New doesn't work
 //TODO: text boxes!!!
 
 import javax.swing.*;
@@ -11,13 +10,19 @@ import java.util.LinkedList;
 public class paintWindow {
 
     private static LinkedList<JCanvas> canvases = new LinkedList<>();
-    private static JCanvas curr;
+    public static JCanvas curr;
     private static JCanvas prev;
     private static JCanvas next;
     private static int currIndex = 0;
     public static int lineWidth = 5;
     public static String selectedButton = "Select";
     public static Color chosenColor;
+    private static double rightmost;
+    private static double downmost;
+
+    private static JMenuItem deleteItem = new JMenuItem("Delete");
+    private static JMenuItem nextItem = new JMenuItem("Next");
+    private static JMenuItem previousItem = new JMenuItem("Previous");
 
     private static void createAndShowGUI()  {
 
@@ -35,15 +40,15 @@ public class paintWindow {
         //Main content panel
         JCanvas contentArea = new JCanvas();
         contentArea.setLayout(new BorderLayout());
-        contentArea.setMaximumSize(new Dimension(1000000, 1000000));
+        contentArea.setPreferredSize(new Dimension((int)rightmost, (int)downmost));
         contentArea.setBackground(Color.white);
         canvases.add(contentArea);
         curr = contentArea;
-        frame.getContentPane().add(contentArea, BorderLayout.CENTER);
+        //frame.getContentPane().add(curr, BorderLayout.CENTER);
 
 
         //make it scrollable
-        JScrollPane scrollPane = new JScrollPane(contentArea, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
+        JScrollPane scrollPane = new JScrollPane(curr, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
         frame.getContentPane().add(scrollPane, BorderLayout.CENTER);
 
 
@@ -80,41 +85,59 @@ public class paintWindow {
         // New
         JMenuItem newItem = new JMenuItem("New");
         newItem.addActionListener(new MyActionListener());
-        // CAN THERE NOT BE MULTIPLE ACTION LISTENERS? DID THE INTERNET LIE TO ME?
         newItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-                System.out.println("got here");
-                frame.getContentPane().remove(curr);
+                scrollPane.getViewport().remove(curr);
                 JCanvas newCanvas = new JCanvas();
+                canvases.add(currIndex+1, newCanvas);
                 prev = curr;
                 curr = newCanvas;
+                curr.setLayout(new BorderLayout());
                 currIndex += 1;
-                frame.getContentPane().add(curr, BorderLayout.CENTER);
+                // change buttons as needed
+                paintWindow.updateButtons();
+
+                // make a new method and call it here
+                curr.setLayout(new BorderLayout());
+                curr.setPreferredSize(new Dimension((int)rightmost, (int)downmost));
+                curr.setBackground(Color.white);
+                scrollPane.getViewport().add(curr);
                 curr.repaint();
             }
         });
 
         // Delete
-        JMenuItem deleteItem = new JMenuItem("Delete");
-        if (canvases.size() < 2) {
-            deleteItem.setEnabled(false);
-        }
+        deleteItem.setEnabled(canvases.size() >=2);
         deleteItem.addActionListener(new MyActionListener());
         deleteItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-                frame.getContentPane().remove(curr);
+                scrollPane.getViewport().remove(curr);
                 if (prev == null) {
                     canvases.remove(curr);
                     curr = canvases.getFirst();
-                    next = canvases.get(1);
+                    if (canvases.size() > 1) {
+                        next = canvases.get(1);
+                    } else {
+                        next = null;
+                    }
+                    currIndex -= 1;
                 } else {
                     canvases.remove(curr);
                     curr = prev;
-                    prev = canvases.get(currIndex - 1);
+                    currIndex -= 1;
+                    if (currIndex > 0) {
+                        prev = canvases.get(currIndex - 1);
+                    } else {
+                        prev = null;
+                    }
                 }
-                frame.getContentPane().add(curr, BorderLayout.CENTER);
+                paintWindow.updateButtons();
+                curr.setLayout(new BorderLayout());
+                curr.setPreferredSize(new Dimension((int)rightmost, (int)downmost));
+                curr.setBackground(Color.white);
+                scrollPane.getViewport().add(curr, BorderLayout.CENTER);
                 curr.repaint();
             }
         });
@@ -123,7 +146,7 @@ public class paintWindow {
         JMenuItem quitItem = new JMenuItem("Quit");
         quitItem.addActionListener(new MyActionListener());
         fileMenu.add(newItem);
-        fileMenu.add(deleteItem);
+        fileMenu.add(paintWindow.deleteItem);
         fileMenu.add(quitItem);
         quitItem.addActionListener(new ActionListener() {
             @Override
@@ -140,46 +163,50 @@ public class paintWindow {
         JMenu viewMenu = new JMenu("View");
         menuBar.add(viewMenu);
         // Next
-        JMenuItem nextItem = new JMenuItem("Next");
-        if (next == null) {
-            nextItem.setEnabled(false);
-        }
+        nextItem.setEnabled(next != null);
         nextItem.addActionListener(new MyActionListener());
         nextItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-                frame.getContentPane().remove(curr);
+                scrollPane.getViewport().remove(curr);
                 prev = curr;
-                curr = next;
                 currIndex += 1;
-                if (canvases.get(currIndex + 1) != null) {
-                    next = canvases.get(currIndex - 1);
+                curr = next;
+                if (currIndex < canvases.size() - 1) {
+                    next = canvases.get(currIndex + 1);
                 } else {
                     next = null;
                 }
-                frame.getContentPane().add(curr, BorderLayout.CENTER);
+                paintWindow.updateButtons();
+                curr.setLayout(new BorderLayout());
+                curr.setPreferredSize(new Dimension((int)rightmost, (int)downmost));
+                curr.setBackground(Color.white);
+                scrollPane.getViewport().add(curr, BorderLayout.CENTER);
                 curr.repaint();
             }
         });
         // Previous
-        JMenuItem previousItem = new JMenuItem("Previous");
-        if (prev == null) {
-            previousItem.setEnabled(false);
-        }
+        previousItem.setEnabled(prev != null);
         previousItem.addActionListener(new MyActionListener());
         previousItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-                frame.getContentPane().remove(curr);
+                scrollPane.getViewport().remove(curr);
+
                 next = curr;
                 curr = prev;
                 currIndex -= 1;
-                if (canvases.get(currIndex - 1) != null) {
+                if (currIndex > 0) {
                     prev = canvases.get(currIndex - 1);
                 } else {
                     prev = null;
                 }
-                frame.getContentPane().add(curr, BorderLayout.CENTER);
+
+                paintWindow.updateButtons();
+                curr.setLayout(new BorderLayout());
+                curr.setPreferredSize(new Dimension((int)rightmost, (int)downmost));
+                curr.setBackground(Color.white);
+                scrollPane.getViewport().add(curr);
                 curr.repaint();
             }
         });
@@ -276,13 +303,18 @@ public class paintWindow {
 
 
         frame.getContentPane().add(toolPalette, BorderLayout.WEST);
-        contentArea.setPreferredSize(new Dimension(frame.getWidth(), frame.getHeight()));
 
 
         // pack() causes the size of the frame to be set just large enough to contain its
         // children; setVisible(true) puts it on the screen
         //frame.pack();
         frame.setVisible(true);
+    }
+
+    private static void updateButtons() {
+        deleteItem.setEnabled(canvases.size() >=2);
+        nextItem.setEnabled(next != null);
+        previousItem.setEnabled(prev != null);
     }
 
 

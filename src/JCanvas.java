@@ -41,6 +41,7 @@ public class JCanvas extends JPanel {
                 drawing = false;
                 points.add(mouseEvent.getPoint());
                 alterDisplayList(points);
+                setCanvasBounds();
             }
 
             @Override
@@ -77,6 +78,22 @@ public class JCanvas extends JPanel {
             this.selectedButton = newSelection;
         }
 
+    }
+
+    private void setCanvasBounds() {
+        double rightmost = 0;
+        double downmost = 0;
+        for (Shape s : displayList) {
+            for (Point p : s.points) {
+                if (p.getX() > rightmost) {
+                    rightmost = p.getX();
+                }
+                if (p.getY() > downmost) {
+                    downmost = p.getY();
+                }
+            }
+        }
+        paintWindow.curr.setPreferredSize(new Dimension((int)rightmost, (int)downmost));
     }
 
     private Shape alterDisplayList(ArrayList<Point> points) {

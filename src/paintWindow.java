@@ -1,4 +1,3 @@
-//TODO: fix scrolling
 //TODO: text boxes!!!
 
 import javax.swing.*;
@@ -44,7 +43,6 @@ public class paintWindow {
         contentArea.setBackground(Color.white);
         canvases.add(contentArea);
         curr = contentArea;
-        //frame.getContentPane().add(curr, BorderLayout.CENTER);
 
 
         //make it scrollable
@@ -98,9 +96,8 @@ public class paintWindow {
                 // change buttons as needed
                 paintWindow.updateButtons();
 
-                // make a new method and call it here
                 curr.setLayout(new BorderLayout());
-                curr.setPreferredSize(new Dimension((int)rightmost, (int)downmost));
+                curr.setCanvasBounds();
                 curr.setBackground(Color.white);
                 scrollPane.getViewport().add(curr);
                 curr.repaint();
@@ -135,7 +132,7 @@ public class paintWindow {
                 }
                 paintWindow.updateButtons();
                 curr.setLayout(new BorderLayout());
-                curr.setPreferredSize(new Dimension((int)rightmost, (int)downmost));
+                curr.setCanvasBounds();
                 curr.setBackground(Color.white);
                 scrollPane.getViewport().add(curr, BorderLayout.CENTER);
                 curr.repaint();
@@ -179,7 +176,7 @@ public class paintWindow {
                 }
                 paintWindow.updateButtons();
                 curr.setLayout(new BorderLayout());
-                curr.setPreferredSize(new Dimension((int)rightmost, (int)downmost));
+                curr.setCanvasBounds();
                 curr.setBackground(Color.white);
                 scrollPane.getViewport().add(curr, BorderLayout.CENTER);
                 curr.repaint();
@@ -204,7 +201,7 @@ public class paintWindow {
 
                 paintWindow.updateButtons();
                 curr.setLayout(new BorderLayout());
-                curr.setPreferredSize(new Dimension((int)rightmost, (int)downmost));
+                curr.setCanvasBounds();
                 curr.setBackground(Color.white);
                 scrollPane.getViewport().add(curr);
                 curr.repaint();

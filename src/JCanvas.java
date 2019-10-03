@@ -1,8 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
+import java.awt.event.*;
 import java.awt.geom.Ellipse2D;
 import java.util.LinkedList;
 import java.util.ArrayList;
@@ -27,6 +25,11 @@ public class JCanvas extends JPanel {
 
             @Override
             public void mousePressed(MouseEvent mouseEvent) {
+                if (displayList.size() != 0) {
+                    if (displayList.getLast() instanceof TextBox) {
+                        ((TextBox)(displayList.getLast())).typing = false;
+                    }
+                }
                 if (mouseEvent.getSource() instanceof JCanvas) {
                     ((JCanvas) mouseEvent.getSource()).setSelectedButton(paintWindow.selectedButton);
                 }
@@ -42,6 +45,7 @@ public class JCanvas extends JPanel {
                 points.add(mouseEvent.getPoint());
                 alterDisplayList(points);
                 setCanvasBounds();
+                paintWindow.curr.revalidate();
             }
 
             @Override
@@ -58,7 +62,9 @@ public class JCanvas extends JPanel {
 
             @Override
             public void mouseDragged(MouseEvent mouseEvent) {
-                points.add(mouseEvent.getPoint());
+                if (drawing) {
+                    points.add(mouseEvent.getPoint());
+                }
                 if (!displayList.isEmpty()) {
                     displayList.removeLast();
                 }
@@ -71,6 +77,32 @@ public class JCanvas extends JPanel {
             }
         } );
 
+        this.addKeyListener(new KeyListener() {
+
+            @Override
+            public void keyTyped(KeyEvent keyEvent) {
+                if (displayList.getLast() instanceof TextBox) {
+                    ((TextBox)(displayList.getLast())).text += keyEvent.getKeyChar();
+                    repaint();
+                }
+
+
+
+
+            }
+
+            @Override
+            public void keyPressed(KeyEvent keyEvent) {
+
+            }
+
+            @Override
+            public void keyReleased(KeyEvent keyEvent) {
+
+            }
+        });
+        this.requestFocus();
+
     }
 
     private void setSelectedButton(String newSelection) {
@@ -80,7 +112,7 @@ public class JCanvas extends JPanel {
 
     }
 
-    private void setCanvasBounds() {
+    public void setCanvasBounds() {
         double rightmost = 0;
         double downmost = 0;
         for (Shape s : displayList) {
@@ -93,7 +125,7 @@ public class JCanvas extends JPanel {
                 }
             }
         }
-        paintWindow.curr.setPreferredSize(new Dimension((int)rightmost, (int)downmost));
+        paintWindow.curr.setPreferredSize(new Dimension((int)rightmost + 20, (int)downmost + 20));
     }
 
     private Shape alterDisplayList(ArrayList<Point> points) {
@@ -124,7 +156,11 @@ public class JCanvas extends JPanel {
             this.repaint();
             return newMonstrosity;
         } else if (selectedButton.equals("Text")) {
-            return null;
+            TextBox newTextBox = new TextBox(points, paintWindow.lineWidth, paintWindow.chosenColor, "");
+            displayList.add(newTextBox);
+            this.repaint();
+            this.requestFocus();
+            return newTextBox;
         }
 
         return null;
@@ -134,6 +170,12 @@ public class JCanvas extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
+        RenderingHints rh = new RenderingHints(
+                RenderingHints.KEY_TEXT_ANTIALIASING,
+                RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        RenderingHints rh2 = new RenderingHints(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHints(rh);
+        g2.setRenderingHints(rh2);
 
         for (Shape s : displayList) {
             g2.setStroke(new BasicStroke(s.lineWidth));
@@ -147,7 +189,6 @@ public class JCanvas extends JPanel {
                         Math.min(s.points.get(0).y, s.points.get(s.points.size()-1).y),
                         Math.abs(s.points.get(s.points.size()-1).x-s.points.get(0).x),
                         Math.abs(s.points.get(s.points.size()-1).y-s.points.get(0).y)));
-                //rubberbanding will be bounding rectangle
             }
             if (s instanceof Rectangle) {
                 g2.drawRect(Math.min(s.points.get(0).x, s.points.get(s.points.size()-1).x),
@@ -164,13 +205,48 @@ public class JCanvas extends JPanel {
                     g2.drawLine(p1.x, p1.y, p2.x, p2.y);
                 }
             }
+            if (s instanceof TextBox) {
+                TextBox ess = (TextBox)s;
+                // USE FONTMETRICS!!
+                int xedge = Math.max(s.points.get(s.points.size()-1).x,s.points.get(0).x);
+                int yedge = Math.max(s.points.get(s.points.size()-1).y,s.points.get(0).y);
+                int numExtraLines = 0;
+                g2.setFont(new Font("Arial", Font.PLAIN, 12));
+                FontMetrics metrics = g2.getFontMetrics(g2.getFont());
+                int fontHeight;
+                int fontWidth;
+                int letterX = Math.min(s.points.get(0).x, s.points.get(s.points.size()-1).x) + 5;
+                int letterY = Math.min(s.points.get(0).y, s.points.get(s.points.size()-1).y) + 15;
+                for (int i = 0; i < ess.getText().length(); i++) {
+                    fontHeight = metrics.getHeight();
+                    if (letterX + 10 >= xedge) {
+                        letterY += fontHeight + 2;
+                        letterX = Math.min(s.points.get(0).x, s.points.get(s.points.size()-1).x) + 5;
+                    }
+                    if (letterY + 10 >= yedge) {
+                        numExtraLines += 1;
+                        yedge += fontHeight + 2;
+                        s.points.add(new Point(Math.max(s.points.get(0).x, s.points.get(s.points.size()-1).x), yedge));
+                    }
+                    if (((TextBox)s).typing) {
+                        g2.drawRect(Math.min(s.points.get(0).x, s.points.get(s.points.size()-1).x),
+                                Math.min(s.points.get(0).y, s.points.get(s.points.size()-1).y), Math.abs(s.points.get(s.points.size()-1).x-s.points.get(0).x),
+                                Math.abs(s.points.get(s.points.size()-1).y-s.points.get(0).y) + numExtraLines*fontHeight);
+                    }
+
+                    g2.drawString(ess.getText().charAt(i) + "", letterX, letterY);
+                    //System.out.println(ess.getText().charAt(i) + " at " + letterX + " , " + letterY);
+                    fontWidth = metrics.stringWidth(ess.getText().charAt(i) + "");
+                    letterX += fontWidth;
+                    //setCanvasBounds();
+
+
+
+
+                }
+            }
         }
- //       if (drawing) {
- //           Shape newKid = alterDisplayList(startingPoint, MouseInfo.getPointerInfo().getLocation());
- //           repaint();
 
-
- //       }
     }
 
     public class Shape extends JComponent {
@@ -180,7 +256,7 @@ public class JCanvas extends JPanel {
 
         public Shape(ArrayList<Point> points, int lineWidth, Color color) {
             this.points = points;
-            this.lineWidth = paintWindow.lineWidth;
+            this.lineWidth = lineWidth;
             this.color = color;
         }
 
@@ -210,6 +286,25 @@ public class JCanvas extends JPanel {
     public class FreeFormMonstrosity extends Shape {
         public FreeFormMonstrosity(ArrayList<Point> points, int lineWidth, Color color) {
             super(points, lineWidth, color);
+        }
+    }
+
+    public class TextBox extends Rectangle {
+        String text;
+        boolean typing;
+        public TextBox(ArrayList<Point> points, int lineWidth, Color color, String text) {
+            super(points, lineWidth, color);
+            this.text = text;
+            this.typing = true;
+
+        }
+
+        public String getText() {
+            return this.text;
+        }
+
+        public void setText(String s) {
+            this.text = s;
         }
     }
 

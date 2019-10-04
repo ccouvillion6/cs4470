@@ -11,6 +11,7 @@ public class JCanvas extends JPanel {
     private String selectedButton;
     private ArrayList<Point> points = new ArrayList<>();
     private boolean drawing = false;
+    private TextBox currentTextBox = null;
 
     public JCanvas() {
         this.displayList = new LinkedList<>();
@@ -25,6 +26,7 @@ public class JCanvas extends JPanel {
 
             @Override
             public void mousePressed(MouseEvent mouseEvent) {
+                currentTextBox = null;
                 if (displayList.size() != 0) {
                     if (displayList.getLast() instanceof TextBox) {
                         ((TextBox)(displayList.getLast())).typing = false;
@@ -42,7 +44,8 @@ public class JCanvas extends JPanel {
             @Override
             public void mouseReleased(MouseEvent mouseEvent) {
                 drawing = false;
-                points.add(mouseEvent.getPoint());
+                //points.add(mouseEvent.getPoint());
+                //displayList.removeLast();
                 alterDisplayList(points);
                 setCanvasBounds();
                 paintWindow.curr.revalidate();
@@ -64,11 +67,13 @@ public class JCanvas extends JPanel {
             public void mouseDragged(MouseEvent mouseEvent) {
                 if (drawing) {
                     points.add(mouseEvent.getPoint());
+                    if (displayList.size() > 0) {
+                        //displayList.removeLast();
+                        alterDisplayList(points);
+                    } else {
+                        alterDisplayList(points);
+                    }
                 }
-                if (!displayList.isEmpty()) {
-                    displayList.removeLast();
-                }
-                alterDisplayList(points);
             }
 
             @Override
@@ -82,8 +87,27 @@ public class JCanvas extends JPanel {
             @Override
             public void keyTyped(KeyEvent keyEvent) {
                 if (displayList.getLast() instanceof TextBox) {
-                    ((TextBox)(displayList.getLast())).text += keyEvent.getKeyChar();
-                    repaint();
+                    boolean isTyping = ((TextBox)displayList.getLast()).typing;
+                    if (isTyping) {
+                        ArrayList<String> textArray = ((TextBox)(displayList.getLast())).text;
+                        String currWord = "";
+                        if (textArray.size() > 0) {
+                            currWord = textArray.get(textArray.size()-1);
+                        }
+                        String newChar = keyEvent.getKeyChar() + "";
+                        if (textArray.size() == 0) {
+                            textArray.add(newChar);
+                        } else {
+                            textArray.remove(currWord);
+                            currWord += newChar;
+                            textArray.add(currWord);
+                            if (newChar.equals(" ")) {
+                                textArray.add("");
+                            }
+                        }
+                        ((TextBox)(displayList.getLast())).text = textArray;
+                        repaint();
+                    }
                 }
 
 
@@ -156,8 +180,10 @@ public class JCanvas extends JPanel {
             this.repaint();
             return newMonstrosity;
         } else if (selectedButton.equals("Text")) {
-            TextBox newTextBox = new TextBox(points, paintWindow.lineWidth, paintWindow.chosenColor, "");
+            TextBox newTextBox = new TextBox(points, paintWindow.lineWidth, paintWindow.chosenColor, new ArrayList<>());
             displayList.add(newTextBox);
+            newTextBox.typing = true;
+            currentTextBox = newTextBox;
             this.repaint();
             this.requestFocus();
             return newTextBox;
@@ -197,8 +223,7 @@ public class JCanvas extends JPanel {
                         Math.abs(s.points.get(s.points.size()-1).y-s.points.get(0).y));
             }
             if (s instanceof FreeFormMonstrosity) {
-                for (int i = 0; i < s.points.size() - 2; i++)
-                {
+                for (int i = 0; i < s.points.size() - 2; i++) {
                     Point p1 = s.points.get(i);
                     Point p2 = s.points.get(i + 1);
 
@@ -206,45 +231,69 @@ public class JCanvas extends JPanel {
                 }
             }
             if (s instanceof TextBox) {
-                TextBox ess = (TextBox)s;
+                // original bounding rectangle
+                TextBox ess = (TextBox) s;
+                if (ess.equals(currentTextBox)) {
+                    g2.drawRect(Math.min(s.points.get(0).x, s.points.get(s.points.size() - 1).x),
+                            Math.min(s.points.get(0).y, s.points.get(s.points.size() - 1).y), Math.abs(s.points.get(s.points.size() - 1).x - s.points.get(0).x),
+                            Math.abs(s.points.get(s.points.size() - 1).y - s.points.get(0).y));
+                }
+
                 // USE FONTMETRICS!!
-                int xedge = Math.max(s.points.get(s.points.size()-1).x,s.points.get(0).x);
-                int yedge = Math.max(s.points.get(s.points.size()-1).y,s.points.get(0).y);
+                int xedge = Math.max(s.points.get(s.points.size() - 1).x, s.points.get(0).x);
+                int yedge = Math.max(s.points.get(s.points.size() - 1).y, s.points.get(0).y);
                 int numExtraLines = 0;
-                g2.setFont(new Font("Arial", Font.PLAIN, 12));
                 FontMetrics metrics = g2.getFontMetrics(g2.getFont());
-                int fontHeight;
+                int fontHeight = metrics.getHeight();
                 int fontWidth;
-                int letterX = Math.min(s.points.get(0).x, s.points.get(s.points.size()-1).x) + 5;
-                int letterY = Math.min(s.points.get(0).y, s.points.get(s.points.size()-1).y) + 15;
-                for (int i = 0; i < ess.getText().length(); i++) {
-                    fontHeight = metrics.getHeight();
-                    if (letterX + 10 >= xedge) {
-                        letterY += fontHeight + 2;
-                        letterX = Math.min(s.points.get(0).x, s.points.get(s.points.size()-1).x) + 5;
+                int letterX = Math.min(s.points.get(0).x, s.points.get(s.points.size() - 1).x) + 5;
+                int letterY = Math.min(s.points.get(0).y, s.points.get(s.points.size() - 1).y) + 15;
+
+                for (int i = 0; i < ess.getText().size(); i++) {
+                    if (((TextBox) s).typing) {
+                        g2.drawRect(Math.min(s.points.get(0).x, s.points.get(s.points.size() - 1).x),
+                                Math.min(s.points.get(0).y, s.points.get(s.points.size() - 1).y), Math.abs(s.points.get(s.points.size() - 1).x - s.points.get(0).x),
+                                Math.abs(s.points.get(s.points.size() - 1).y - s.points.get(0).y) + numExtraLines * fontHeight);
+                    }
+                    boolean wrapped = false;
+                    String word = ess.getText().get(i);
+                    fontWidth = metrics.stringWidth(word);
+                    if (letterX + fontWidth + 10 >= xedge) {
+                        letterY += fontHeight;
+                        letterX = Math.min(s.points.get(0).x, s.points.get(s.points.size() - 1).x) + 5;
+                        wrapped = true;
                     }
                     if (letterY + 10 >= yedge) {
+                        if (ess.getText().size() == 1) {
+                            try {
+                                throw new Exception("Tiny text boxes or long words make this thing crash.");
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
                         numExtraLines += 1;
-                        yedge += fontHeight + 2;
-                        s.points.add(new Point(Math.max(s.points.get(0).x, s.points.get(s.points.size()-1).x), yedge));
+                        yedge += fontHeight;
+                        s.points.add(new Point(Math.max(s.points.get(0).x, s.points.get(s.points.size() - 1).x), yedge));
+                        wrapped = true;
                     }
-                    if (((TextBox)s).typing) {
-                        g2.drawRect(Math.min(s.points.get(0).x, s.points.get(s.points.size()-1).x),
-                                Math.min(s.points.get(0).y, s.points.get(s.points.size()-1).y), Math.abs(s.points.get(s.points.size()-1).x-s.points.get(0).x),
-                                Math.abs(s.points.get(s.points.size()-1).y-s.points.get(0).y) + numExtraLines*fontHeight);
+                    if (wrapped) {
+                        i -= 1;
+                        //g2.drawRect(Math.min(s.points.get(0).x, s.points.get(s.points.size() - 1).x),
+                        //        Math.min(s.points.get(0).y, s.points.get(s.points.size() - 1).y), Math.abs(s.points.get(s.points.size() - 1).x - s.points.get(0).x),
+                        //        Math.abs(s.points.get(s.points.size() - 1).y - s.points.get(0).y) + numExtraLines * fontHeight);
+
                     }
+                    if (!wrapped) {
+                        g2.drawString(word + "", letterX, letterY);
+                        //System.out.println(ess.getText().charAt(i) + " at " + letterX + " , " + letterY);
+                        letterX += fontWidth;
+                        //setCanvasBounds();
 
-                    g2.drawString(ess.getText().charAt(i) + "", letterX, letterY);
-                    //System.out.println(ess.getText().charAt(i) + " at " + letterX + " , " + letterY);
-                    fontWidth = metrics.stringWidth(ess.getText().charAt(i) + "");
-                    letterX += fontWidth;
-                    //setCanvasBounds();
-
-
-
+                    }
 
                 }
             }
+
         }
 
     }
@@ -289,23 +338,20 @@ public class JCanvas extends JPanel {
         }
     }
 
-    public class TextBox extends Rectangle {
-        String text;
+    public class TextBox extends Shape {
+        ArrayList<String> text;
         boolean typing;
-        public TextBox(ArrayList<Point> points, int lineWidth, Color color, String text) {
+        public TextBox(ArrayList<Point> points, int lineWidth, Color color, ArrayList<String> text) {
             super(points, lineWidth, color);
             this.text = text;
             this.typing = true;
 
         }
 
-        public String getText() {
+        public ArrayList<String> getText() {
             return this.text;
         }
 
-        public void setText(String s) {
-            this.text = s;
-        }
     }
 
 }

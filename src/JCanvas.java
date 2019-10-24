@@ -1,7 +1,14 @@
+import dollar.DollarRecognizer;
+import dollar.Result;
+
+//problem: referencing non-static method from static context?
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.util.LinkedList;
 import java.util.ArrayList;
 
@@ -9,9 +16,12 @@ public class JCanvas extends JPanel {
 
     private LinkedList<Shape> displayList;
     private String selectedButton;
-    private ArrayList<Point> points = new ArrayList<>();
+    private ArrayList<Point2D> points = new ArrayList<>();
     private boolean drawing = false;
     private TextBox currentTextBox = null;
+    private boolean isContext = false;
+    public DollarRecognizer dr = new DollarRecognizer();
+    private int shapeIndex;
 
     public JCanvas() {
         this.displayList = new LinkedList<>();
@@ -26,6 +36,13 @@ public class JCanvas extends JPanel {
 
             @Override
             public void mousePressed(MouseEvent mouseEvent) {
+                if (mouseEvent.getButton() == MouseEvent.BUTTON1) {
+                    isContext = false;
+                }
+                if (mouseEvent.getButton() == MouseEvent.BUTTON3) {
+                    isContext = true;
+                    shapeIndex = displayList.size() <= 0 ? 0 : displayList.size();
+                }
                 currentTextBox = null;
                 if (displayList.size() != 0) {
                     if (displayList.getLast() instanceof TextBox) {
@@ -44,9 +61,23 @@ public class JCanvas extends JPanel {
             @Override
             public void mouseReleased(MouseEvent mouseEvent) {
                 drawing = false;
-                //points.add(mouseEvent.getPoint());
-                //displayList.removeLast();
-                alterDisplayList(points);
+                if (isContext) {
+                    String gesture = recognizeGesture();
+                    // remove gesture drawing from display list
+                    if (gesture.equals("rectangle") || gesture.equals("circle")) {
+                        displayList.subList(shapeIndex, displayList.size()-1).clear();
+                    } else {
+                        if (shapeIndex <= displayList.size()) {
+                            displayList.subList(shapeIndex, displayList.size()).clear();
+                        }
+                    }
+                    repaint();
+
+
+                } else {
+                    displayList.subList(shapeIndex, displayList.size()-1).clear();
+                }
+                isContext = false;
                 setCanvasBounds();
                 paintWindow.curr.revalidate();
             }
@@ -67,12 +98,7 @@ public class JCanvas extends JPanel {
             public void mouseDragged(MouseEvent mouseEvent) {
                 if (drawing) {
                     points.add(mouseEvent.getPoint());
-                    if (displayList.size() > 0) {
-                        //displayList.removeLast();
-                        alterDisplayList(points);
-                    } else {
-                        alterDisplayList(points);
-                    }
+                    alterDisplayList(points);
                 }
             }
 
@@ -129,6 +155,110 @@ public class JCanvas extends JPanel {
 
     }
 
+    public String recognizeGesture() {
+        Result result = dr.recognize(points);
+        if (result == null) {
+            paintWindow.statusBar.setText(" Gesture was not recognized");
+            return "";
+
+        } else if (result.getName().equals("v")) {
+            if (paintWindow.nextItem.isEnabled()) {
+                paintWindow.nextItem.doClick();
+                paintWindow.statusBar.setText(" Next gesture recognized");
+            } else {
+                paintWindow.statusBar.setText(" Next canvas is not available");
+            }
+        } else if (result.getName().equals("caret")) {
+            if (paintWindow.previousItem.isEnabled()) {
+                paintWindow.previousItem.doClick();
+                paintWindow.statusBar.setText(" Previous gesture recognized");
+            } else {
+                paintWindow.statusBar.setText(" Previous canvas is not available");
+            }
+        } else if (result.getName().equals("star")) {
+            if (paintWindow.newItem.isEnabled()) {
+                paintWindow.newItem.doClick();
+                paintWindow.statusBar.setText(" New gesture recognized");
+            } else {
+                paintWindow.statusBar.setText(" New canvas could not be created");
+            }
+        } else if (result.getName().equals("delete")) {
+            if (paintWindow.deleteItem.isEnabled()) {
+                paintWindow.deleteItem.doClick();
+                paintWindow.statusBar.setText(" Delete canvas gesture recognized");
+            } else {
+                paintWindow.statusBar.setText(" Canvas could not be deleted");
+            }
+        } else if (result.getName().equals("rectangle")) {
+            paintWindow.statusBar.setText(" Rectangle gesture recognized");
+            // find bottom right corner of rectangle
+            double rightmost = 0;
+            double downmost = 0;
+            for (Point2D p : points) {
+                if (p.getX() > rightmost) {
+                    rightmost = p.getX();
+                }
+                if (p.getY() > downmost) {
+                    downmost = p.getY();
+                }
+            }
+            ArrayList<Point2D> newArr = new ArrayList<>();
+            newArr.add(points.get(0));
+            newArr.add(new Point2D.Double(rightmost, downmost));
+            Rectangle newRect = new Rectangle(newArr, paintWindow.lineWidth, paintWindow.chosenColor);
+            displayList.add(newRect);
+            this.repaint();
+        } else if (result.getName().equals("circle")) {
+            paintWindow.statusBar.setText(" Oval gesture recognized");
+            // find bottom right corner of bounding rectangle of oval
+            double rightmost = 0;
+            double downmost = 0;
+            for (Point2D p : points) {
+                if (p.getX() > rightmost) {
+                    rightmost = p.getX();
+                }
+                if (p.getY() > downmost) {
+                    downmost = p.getY();
+                }
+            }
+            ArrayList<Point2D> newArr = new ArrayList<>();
+            newArr.add(points.get(0));
+            newArr.add(new Point2D.Double(rightmost, downmost));
+            Oval newOval = new Oval(newArr, paintWindow.lineWidth, paintWindow.chosenColor);
+            displayList.add(newOval);
+            this.repaint();
+        } else if (result.getName().equals("x")) {
+            //delete object
+            for (int j = 0; j < displayList.size()-2; j++) {
+                Shape s = displayList.get(j);
+                System.out.println(s);
+                for (Point2D p : s.points) {
+                    if (points.contains(p)) {
+                        s.removeLater = true;
+                    }
+                }
+
+            }
+            int len = displayList.size()-1;
+            for (int i = 0; i < len; i++) {
+                if (displayList.size()-1 > i) {
+                    if (displayList.get(i).removeLater) {
+                        displayList.remove(displayList.get(i));
+                        i--;
+                        repaint();
+                    }
+                }
+            }
+            paintWindow.statusBar.setText(" Delete object gesture recognized");
+        } else {
+            paintWindow.statusBar.setText(" Gesture was not recognized");
+            return "";
+        }
+        return result.getName();
+
+
+    }
+
     private void setSelectedButton(String newSelection) {
         if (!newSelection.equals("Line Width") && !newSelection.equals("Color")) {
             this.selectedButton = newSelection;
@@ -140,7 +270,7 @@ public class JCanvas extends JPanel {
         double rightmost = 0;
         double downmost = 0;
         for (Shape s : displayList) {
-            for (Point p : s.points) {
+            for (Point2D p : s.points) {
                 if (p.getX() > rightmost) {
                     rightmost = p.getX();
                 }
@@ -152,7 +282,13 @@ public class JCanvas extends JPanel {
         paintWindow.curr.setPreferredSize(new Dimension((int)rightmost + 20, (int)downmost + 20));
     }
 
-    private Shape alterDisplayList(ArrayList<Point> points) {
+    private Shape alterDisplayList(ArrayList<Point2D> points) {
+        if (isContext) {
+            FreeFormMonstrosity newMonstrosity = new FreeFormMonstrosity(points, paintWindow.lineWidth, Color.lightGray, true);
+            displayList.add(newMonstrosity);
+            this.repaint();
+            return newMonstrosity;
+        }
         if (selectedButton.equals("Select")) {
             // select commands
             // don't worry about this one for now
@@ -175,7 +311,12 @@ public class JCanvas extends JPanel {
             this.repaint();
             return newOval;
         } else if (selectedButton.equals("Pen")) {
-            FreeFormMonstrosity newMonstrosity = new FreeFormMonstrosity(points, paintWindow.lineWidth, paintWindow.chosenColor);
+            FreeFormMonstrosity newMonstrosity;
+            if (isContext) {
+                newMonstrosity = new FreeFormMonstrosity(points, paintWindow.lineWidth, Color.lightGray, true);
+            } else {
+                newMonstrosity = new FreeFormMonstrosity(points, paintWindow.lineWidth, paintWindow.chosenColor, false);
+            }
             displayList.add(newMonstrosity);
             this.repaint();
             return newMonstrosity;
@@ -207,60 +348,61 @@ public class JCanvas extends JPanel {
             g2.setStroke(new BasicStroke(s.lineWidth));
             g2.setColor(s.color);
             if (s instanceof Line) {
-                g2.drawLine(s.points.get(0).x, s.points.get(0).y, s.points.get(s.points.size()-1).x,
-                        s.points.get(s.points.size()-1).y);
+                g2.drawLine((int)s.points.get(0).getX(), (int)s.points.get(0).getY(), (int)s.points.get(s.points.size()-1).getX(),
+                        (int)s.points.get(s.points.size()-1).getY());
             }
             if (s instanceof Oval) {
-                g2.draw(new Ellipse2D.Double(Math.min(s.points.get(0).x, s.points.get(s.points.size()-1).x),
-                        Math.min(s.points.get(0).y, s.points.get(s.points.size()-1).y),
-                        Math.abs(s.points.get(s.points.size()-1).x-s.points.get(0).x),
-                        Math.abs(s.points.get(s.points.size()-1).y-s.points.get(0).y)));
+                g2.draw(new Ellipse2D.Double(Math.min(s.points.get(0).getX(), s.points.get(s.points.size()-1).getX()),
+                        Math.min(s.points.get(0).getY(), s.points.get(s.points.size()-1).getY()),
+                        Math.abs(s.points.get(s.points.size()-1).getX()-s.points.get(0).getX()),
+                        Math.abs(s.points.get(s.points.size()-1).getY()-s.points.get(0).getY())));
             }
             if (s instanceof Rectangle) {
-                g2.drawRect(Math.min(s.points.get(0).x, s.points.get(s.points.size()-1).x),
-                        Math.min(s.points.get(0).y, s.points.get(s.points.size()-1).y),
-                        Math.abs(s.points.get(s.points.size()-1).x-s.points.get(0).x),
-                        Math.abs(s.points.get(s.points.size()-1).y-s.points.get(0).y));
+                g2.drawRect((int)Math.min(s.points.get(0).getX(), s.points.get(s.points.size()-1).getX()),
+                        (int)Math.min(s.points.get(0).getY(), s.points.get(s.points.size()-1).getY()),
+                        (int)Math.abs(s.points.get(s.points.size()-1).getX()-s.points.get(0).getX()),
+                        (int)Math.abs(s.points.get(s.points.size()-1).getY()-s.points.get(0).getY()));
             }
             if (s instanceof FreeFormMonstrosity) {
                 for (int i = 0; i < s.points.size() - 2; i++) {
-                    Point p1 = s.points.get(i);
-                    Point p2 = s.points.get(i + 1);
-
-                    g2.drawLine(p1.x, p1.y, p2.x, p2.y);
+                    Point2D p1 = s.points.get(i);
+                    Point2D p2 = s.points.get(i + 1);
+                    g2.drawLine((int)p1.getX(), (int)p1.getY(), (int)p2.getX(), (int)p2.getY());
                 }
             }
             if (s instanceof TextBox) {
                 // original bounding rectangle
                 TextBox ess = (TextBox) s;
                 if (ess.equals(currentTextBox)) {
-                    g2.drawRect(Math.min(s.points.get(0).x, s.points.get(s.points.size() - 1).x),
-                            Math.min(s.points.get(0).y, s.points.get(s.points.size() - 1).y), Math.abs(s.points.get(s.points.size() - 1).x - s.points.get(0).x),
-                            Math.abs(s.points.get(s.points.size() - 1).y - s.points.get(0).y));
+                    g2.drawRect((int)Math.min(s.points.get(0).getX(), s.points.get(s.points.size() - 1).getX()),
+                            (int)Math.min(s.points.get(0).getY(), s.points.get(s.points.size() - 1).getY()),
+                            (int)Math.abs(s.points.get(s.points.size() - 1).getX() - s.points.get(0).getX()),
+                            (int)Math.abs(s.points.get(s.points.size() - 1).getY() - s.points.get(0).getY()));
                 }
 
                 // USE FONTMETRICS!!
-                int xedge = Math.max(s.points.get(s.points.size() - 1).x, s.points.get(0).x);
-                int yedge = Math.max(s.points.get(s.points.size() - 1).y, s.points.get(0).y);
+                int xedge = (int)Math.max(s.points.get(s.points.size() - 1).getX(), s.points.get(0).getX());
+                int yedge = (int)Math.max(s.points.get(s.points.size() - 1).getY(), s.points.get(0).getY());
                 int numExtraLines = 0;
                 FontMetrics metrics = g2.getFontMetrics(g2.getFont());
                 int fontHeight = metrics.getHeight();
                 int fontWidth;
-                int letterX = Math.min(s.points.get(0).x, s.points.get(s.points.size() - 1).x) + 5;
-                int letterY = Math.min(s.points.get(0).y, s.points.get(s.points.size() - 1).y) + 15;
+                int letterX = (int)Math.min(s.points.get(0).getX(), s.points.get(s.points.size() - 1).getX()) + 5;
+                int letterY = (int)Math.min(s.points.get(0).getY(), s.points.get(s.points.size() - 1).getY()) + 15;
 
                 for (int i = 0; i < ess.getText().size(); i++) {
                     if (((TextBox) s).typing) {
-                        g2.drawRect(Math.min(s.points.get(0).x, s.points.get(s.points.size() - 1).x),
-                                Math.min(s.points.get(0).y, s.points.get(s.points.size() - 1).y), Math.abs(s.points.get(s.points.size() - 1).x - s.points.get(0).x),
-                                Math.abs(s.points.get(s.points.size() - 1).y - s.points.get(0).y) + numExtraLines * fontHeight);
+                        g2.drawRect((int)Math.min(s.points.get(0).getX(), s.points.get(s.points.size() - 1).getX()),
+                                (int)Math.min(s.points.get(0).getY(), s.points.get(s.points.size() - 1).getY()),
+                                (int)Math.abs(s.points.get(s.points.size() - 1).getX() - s.points.get(0).getX()),
+                                (int)Math.abs(s.points.get(s.points.size() - 1).getY() - s.points.get(0).getY()) + numExtraLines * fontHeight);
                     }
                     boolean wrapped = false;
                     String word = ess.getText().get(i);
                     fontWidth = metrics.stringWidth(word);
                     if (letterX + fontWidth + 10 >= xedge) {
                         letterY += fontHeight;
-                        letterX = Math.min(s.points.get(0).x, s.points.get(s.points.size() - 1).x) + 5;
+                        letterX = (int)Math.min(s.points.get(0).getX(), s.points.get(s.points.size() - 1).getX()) + 5;
                         wrapped = true;
                     }
                     if (letterY + 10 >= yedge) {
@@ -273,7 +415,7 @@ public class JCanvas extends JPanel {
                         }
                         numExtraLines += 1;
                         yedge += fontHeight;
-                        s.points.add(new Point(Math.max(s.points.get(0).x, s.points.get(s.points.size() - 1).x), yedge));
+                        s.points.add(new Point2D.Double(Math.max(s.points.get(0).getX(), s.points.get(s.points.size() - 1).getX()), yedge));
                         wrapped = true;
                     }
                     if (wrapped) {
@@ -299,49 +441,57 @@ public class JCanvas extends JPanel {
     }
 
     public class Shape extends JComponent {
-        ArrayList<Point> points;
+        ArrayList<Point2D> points;
         int lineWidth;
         Color color;
+        boolean isContext;
 
-        public Shape(ArrayList<Point> points, int lineWidth, Color color) {
+        public Shape(ArrayList<Point2D> points, int lineWidth, Color color) {
             this.points = points;
             this.lineWidth = lineWidth;
             this.color = color;
         }
+
+        boolean removeLater = false;
 
 
     }
 
     public class Line extends Shape {
 
-        public Line(ArrayList<Point> points, int lineWidth, Color color) {
+        public Line(ArrayList<Point2D> points, int lineWidth, Color color) {
             super(points, lineWidth, color);
         }
 
     }
 
     public class Oval extends Shape {
-        public Oval(ArrayList<Point> points, int lineWidth, Color color) {
+        public Oval(ArrayList<Point2D> points, int lineWidth, Color color) {
             super(points, lineWidth, color);
         }
     }
 
     public class Rectangle extends Shape {
-        public Rectangle(ArrayList<Point> points, int lineWidth, Color color) {
+        public Rectangle(ArrayList<Point2D> points, int lineWidth, Color color) {
             super(points, lineWidth, color);
         }
+        Rectangle2D rect = new Rectangle2D.Double((int)Math.min(this.points.get(0).getX(), this.points.get(this.points.size()-1).getX()),
+                (int)Math.min(this.points.get(0).getY(), this.points.get(this.points.size()-1).getY()),
+                (int)Math.abs(this.points.get(this.points.size()-1).getX()-this.points.get(0).getX()),
+                (int)Math.abs(this.points.get(this.points.size()-1).getY()-this.points.get(0).getY()));
     }
 
     public class FreeFormMonstrosity extends Shape {
-        public FreeFormMonstrosity(ArrayList<Point> points, int lineWidth, Color color) {
+        public FreeFormMonstrosity(ArrayList<Point2D> points, int lineWidth, Color color, boolean isContext) {
             super(points, lineWidth, color);
+            this.isContext = isContext;
         }
     }
 
     public class TextBox extends Shape {
         ArrayList<String> text;
         boolean typing;
-        public TextBox(ArrayList<Point> points, int lineWidth, Color color, ArrayList<String> text) {
+        public TextBox(ArrayList<Point2D> points, int lineWidth, Color color, ArrayList<String> text) {
             super(points, lineWidth, color);
             this.text = text;
             this.typing = true;

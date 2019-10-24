@@ -1,5 +1,3 @@
-//TODO: text boxes!!!
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -15,15 +13,18 @@ public class paintWindow {
     private static int currIndex = 0;
     public static int lineWidth = 5;
     public static String selectedButton = "Select";
-    public static Color chosenColor;
+    public static Color chosenColor = Color.black;
     private static double rightmost;
     private static double downmost;
 
-    private static JMenuItem deleteItem = new JMenuItem("Delete");
-    private static JMenuItem nextItem = new JMenuItem("Next");
-    private static JMenuItem previousItem = new JMenuItem("Previous");
+    public static JMenuItem deleteItem = new JMenuItem("Delete");
+    public static JMenuItem nextItem = new JMenuItem("Next");
+    public static JMenuItem previousItem = new JMenuItem("Previous");
+    public static JMenuItem newItem = new JMenuItem("New");
 
-    private static void createAndShowGUI()  {
+    public static JLabel statusBar = new JLabel();
+
+    public static void createAndShowGUI()  {
 
         int APP_WIDTH = 700;
         int APP_HEIGHT = 400;
@@ -53,7 +54,6 @@ public class paintWindow {
 
 
         // Status bar
-        JLabel statusBar = new JLabel();
         frame.getContentPane().add(statusBar, BorderLayout.SOUTH);
         statusBar.setBackground(Color.darkGray);
         statusBar.setText(" Status");
@@ -81,7 +81,7 @@ public class paintWindow {
         menuBar.add(fileMenu);
 
         // New
-        JMenuItem newItem = new JMenuItem("New");
+
         newItem.addActionListener(new MyActionListener());
         newItem.addActionListener(new ActionListener() {
             @Override

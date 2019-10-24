@@ -1,5 +1,6 @@
 import dollar.DollarRecognizer;
 import dollar.Result;
+import org.w3c.dom.Text;
 
 //problem: referencing non-static method from static context?
 
@@ -7,6 +8,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.Ellipse2D;
+import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.LinkedList;
@@ -72,6 +74,9 @@ public class JCanvas extends JPanel {
                         }
                     }
                     repaint();
+                    if (gesture.equals("x")) {
+                        deleteObject();
+                    }
 
 
                 } else {
@@ -228,27 +233,6 @@ public class JCanvas extends JPanel {
             displayList.add(newOval);
             this.repaint();
         } else if (result.getName().equals("x")) {
-            //delete object
-            for (int j = 0; j < displayList.size()-2; j++) {
-                Shape s = displayList.get(j);
-                System.out.println(s);
-                for (Point2D p : s.points) {
-                    if (points.contains(p)) {
-                        s.removeLater = true;
-                    }
-                }
-
-            }
-            int len = displayList.size()-1;
-            for (int i = 0; i < len; i++) {
-                if (displayList.size()-1 > i) {
-                    if (displayList.get(i).removeLater) {
-                        displayList.remove(displayList.get(i));
-                        i--;
-                        repaint();
-                    }
-                }
-            }
             paintWindow.statusBar.setText(" Delete object gesture recognized");
         } else {
             paintWindow.statusBar.setText(" Gesture was not recognized");
@@ -257,6 +241,69 @@ public class JCanvas extends JPanel {
         return result.getName();
 
 
+    }
+
+    private void deleteObject() {
+        //delete object
+        for (Shape s : displayList) {
+            System.out.println(s);
+            if (s instanceof Rectangle) {
+                for (Point2D p : s.points) {
+                    double ulx = ((Rectangle)s).upperLeft.getX();
+                    double uly = ((Rectangle)s).upperLeft.getY();
+                    double w = ((Rectangle)s).width;
+                    double h = ((Rectangle)s).height;
+                    if (p.getX() >= ulx && p.getY() >= uly && p.getX() <= ulx + w && p.getY() <= uly + h) {
+                        s.setRemoveLater(true);
+                        System.out.println("set");
+                    }
+                }
+            }
+            if (s instanceof Oval) {
+                for (Point2D p : s.points) {
+                    double ulx = ((Oval)s).upperLeft.getX();
+                    double uly = ((Oval)s).upperLeft.getY();
+                    double w = ((Oval)s).width;
+                    double h = ((Oval)s).height;
+                    if (p.getX() >= ulx && p.getY() >= uly && p.getX() <= ulx + w && p.getY() <= uly + h) {
+                        s.setRemoveLater(true);
+                    }
+                }
+            }
+            if (s instanceof TextBox) {
+                for (Point2D p : s.points) {
+                    double ulx = ((TextBox)s).upperLeft.getX();
+                    double uly = ((TextBox)s).upperLeft.getY();
+                    double w = ((TextBox)s).width;
+                    double h = ((TextBox)s).height;
+                    if (p.getX() >= ulx && p.getY() >= uly && p.getX() <= ulx + w && p.getY() <= uly + h) {
+                        s.setRemoveLater(true);
+                    }
+                }
+            }
+            if (s instanceof Line) {
+                for (Point2D p : s.points) {
+                    Rectangle2D boundingBox = new Rectangle2D.Double(p.getX() - 3, p.getY() - 3, 6, 6);
+                    Line2D line = new Line2D.Double(((Line)s).p1.getX(), ((Line)s).p1.getY(), ((Line)s).p2.getX(), ((Line)s).p2.getY());
+
+                    if (boundingBox.intersectsLine(line)) {
+                        s.setRemoveLater(true);
+                    }
+                }
+            }
+
+
+        }
+        int len = displayList.size();
+        for (int i = 0; i < len; i++) {
+            if (displayList.size() > i) {
+                if (displayList.get(i).removeLater) {
+                    displayList.remove(displayList.get(i));
+                    i--;
+                    repaint();
+                }
+            }
+        }
     }
 
     private void setSelectedButton(String newSelection) {
@@ -454,6 +501,10 @@ public class JCanvas extends JPanel {
 
         boolean removeLater = false;
 
+        public void setRemoveLater(boolean removeLater) {
+            this.removeLater = removeLater;
+        }
+
 
     }
 
@@ -463,22 +514,29 @@ public class JCanvas extends JPanel {
             super(points, lineWidth, color);
         }
 
+        Point2D p1 = new Point2D.Double(this.points.get(0).getX(), this.points.get(0).getY());
+        Point2D p2 = new Point2D.Double(this.points.get(this.points.size()-1).getX(), this.points.get(this.points.size()-1).getY());
+
     }
 
     public class Oval extends Shape {
         public Oval(ArrayList<Point2D> points, int lineWidth, Color color) {
             super(points, lineWidth, color);
         }
+        public Point2D upperLeft = new Point2D.Double((int)Math.min(this.points.get(0).getX(), this.points.get(this.points.size()-1).getX()),
+                (int)Math.min(this.points.get(0).getY(), this.points.get(this.points.size()-1).getY()));
+        public double width = (int)Math.abs(this.points.get(this.points.size()-1).getX()-this.points.get(0).getX());
+        public double height = (int)Math.abs(this.points.get(this.points.size()-1).getY()-this.points.get(0).getY());
     }
 
     public class Rectangle extends Shape {
         public Rectangle(ArrayList<Point2D> points, int lineWidth, Color color) {
             super(points, lineWidth, color);
         }
-        Rectangle2D rect = new Rectangle2D.Double((int)Math.min(this.points.get(0).getX(), this.points.get(this.points.size()-1).getX()),
-                (int)Math.min(this.points.get(0).getY(), this.points.get(this.points.size()-1).getY()),
-                (int)Math.abs(this.points.get(this.points.size()-1).getX()-this.points.get(0).getX()),
-                (int)Math.abs(this.points.get(this.points.size()-1).getY()-this.points.get(0).getY()));
+        public Point2D upperLeft = new Point2D.Double((int)Math.min(this.points.get(0).getX(), this.points.get(this.points.size()-1).getX()),
+                (int)Math.min(this.points.get(0).getY(), this.points.get(this.points.size()-1).getY()));
+        public double width = (int)Math.abs(this.points.get(this.points.size()-1).getX()-this.points.get(0).getX());
+        public double height = (int)Math.abs(this.points.get(this.points.size()-1).getY()-this.points.get(0).getY());
     }
 
     public class FreeFormMonstrosity extends Shape {
@@ -501,6 +559,11 @@ public class JCanvas extends JPanel {
         public ArrayList<String> getText() {
             return this.text;
         }
+
+        public Point2D upperLeft = new Point2D.Double((int)Math.min(this.points.get(0).getX(), this.points.get(this.points.size()-1).getX()),
+                (int)Math.min(this.points.get(0).getY(), this.points.get(this.points.size()-1).getY()));
+        public double width = (int)Math.abs(this.points.get(this.points.size()-1).getX()-this.points.get(0).getX());
+        public double height = (int)Math.abs(this.points.get(this.points.size()-1).getY()-this.points.get(0).getY());
 
     }
 

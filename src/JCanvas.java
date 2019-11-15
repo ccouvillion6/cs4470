@@ -29,10 +29,6 @@ public class JCanvas extends JPanel {
     private Rectangle2D lowerHandle;
     private boolean isDragging = false;
 
-    private boolean isSnappedNorth = false;
-    private boolean isSnappedSouth = false;
-    private boolean isSnappedWest = false;
-    private boolean isSnappedEast = false;
 
     public JCanvas() {
         this.displayList = new LinkedList<>();
@@ -490,34 +486,50 @@ public class JCanvas extends JPanel {
         if (offsetY < 0) {
             north = true;
         }
-        int threshold = 30;
+        int threshold = 70;
+        boolean isSnappedNorth = (bb.getY() % 100 == 0);
+        boolean isSnappedSouth = ((bb.getY() + bb.getHeight()) % 100 == 0);
+        boolean isSnappedWest = (bb.getX() % 100 == 0);
+        boolean isSnappedEast = ((bb.getX() + bb.getWidth()) % 100 == 0);
+        
+        
+        boolean toUnsnap = false;
+        String statusBarText = "";
         if (north) {
             if (isSnappedNorth || isSnappedSouth) {
+                toUnsnap = false;
+                if (isSnappedNorth) {
+                    if (bb.getY() - mouseEvent.getY() > threshold) {
+                        toUnsnap = true;
+                    }
+                }
+                if (isSnappedSouth) {
+                    if (bb.getY() - mouseEvent.getY() > threshold) {
+                        toUnsnap = true;
+                    }
+                }
                 // check to see if we've exceeded the threshold to unsnap
                 //if not, do nothing
-                System.out.println("bounding box y: " + bb.getY());
-                System.out.println("grab Y: " + grabY);
-                System.out.println("mouse Y: " + mouseEvent.getY());
-                if (Math.abs(bb.getY() + grabY - mouseEvent.getY()) >  threshold) {
+                if (toUnsnap) {
                     //unsnap in direction of travel
-                    System.out.println("unsnap");
+                    statusBarText += "Unsnapped from NORTH ";
                     for (Point2D p : overlaps.points) {
-                        p.setLocation(p.getX() + offsetX, p.getY() + offsetY);
+                        p.setLocation(p.getX(), p.getY() + offsetY);
                     }
-                    grabX = mouseEvent.getX();
                     grabY = mouseEvent.getY();
-                    isSnappedNorth = false;
-                    isSnappedSouth = false;
                     repaint();
                 }
 
             } else {
                 double prevGrid = Math.floor(bb.getY()/100)*100;
-                
-                if (Math.abs(prevGrid - bb.getY()) < threshold) {
-                    System.out.println("snap");
-                    double gridDist = bb.getY() - prevGrid;
+                double gridDist = bb.getY() - prevGrid;
+                if (gridDist < threshold && gridDist > 0) {
+                    
                     //SNAP
+                    if (statusBarText != "") {
+                        statusBarText += " & ";
+                    }
+                    statusBarText += "Snapped to NORTH";
                     for (Point2D p : overlaps.points) {
                         
                         p.setLocation(p.getX(), p.getY() - gridDist);
@@ -526,18 +538,202 @@ public class JCanvas extends JPanel {
                     isSnappedNorth = true;
                     
                     repaint();
-                    isDragging = false;
+                   // isDragging = false;
                 } else {
 
                     //no snap, just regular dragging
                     for (Point2D p : overlaps.points) {
-                        p.setLocation(p.getX() + offsetX, p.getY() + offsetY);
+                        p.setLocation(p.getX(), p.getY() + offsetY);
                     }
                     repaint();
+                    grabY = mouseEvent.getY();
+                }
+                
+            }
+        } else if (south) {
+            if (isSnappedNorth || isSnappedSouth) {
+                // check to see if we've exceeded the threshold to unsnap
+                //if not, do nothing
+                toUnsnap = false;
+                if (isSnappedNorth) {
+                    if (mouseEvent.getY() - bb.getY() > threshold) {
+                        toUnsnap = true;
+                    }
+                }
+                if (isSnappedSouth) {
+                    if (mouseEvent.getY() - bb.getY() > threshold) {
+                        toUnsnap = true;
+                    }
+                }
+                if (toUnsnap) {
+                    //unsnap in direction of travel
+                    if (statusBarText != "") {
+                        statusBarText += " & ";
+                    }
+                    statusBarText += "Unsnapped from SOUTH";
+                    for (Point2D p : overlaps.points) {
+                        p.setLocation(p.getX(), p.getY() + offsetY);
+                    }
+                    grabY = mouseEvent.getY();
+                    repaint();
+                }
+
+            } else {
+                double nextGrid = Math.ceil((bb.getY() + bb.getHeight())/100)*100;
+                double gridDist = nextGrid - bb.getY() - bb.getHeight();
+                if (gridDist < threshold && gridDist > 0) {
+                    if (statusBarText != "") {
+                        statusBarText += " & ";
+                    }
+                    statusBarText += "Snapped to SOUTH";
+                    //SNAP
+                    for (Point2D p : overlaps.points) {
+                        
+                        p.setLocation(p.getX(), p.getY() + gridDist);
+                    }
+                    grabY = mouseEvent.getY();
+                    isSnappedSouth = true;
+                    
+                    repaint();
+                   // isDragging = false;
+                } else {
+
+                    //no snap, just regular dragging
+                    for (Point2D p : overlaps.points) {
+                        p.setLocation(p.getX(), p.getY() + offsetY);
+                    }
+                    repaint();
+                    grabY = mouseEvent.getY();
                 }
                 
             }
         }
+
+        bb = findBoundingBox(s.points);
+        offsetX = mouseEvent.getX() - grabX;
+        offsetY = mouseEvent.getY() - grabY;
+        
+        if (west) {
+            if (isSnappedWest || isSnappedEast) {
+                toUnsnap = false;
+                if (isSnappedWest) {
+                    if (bb.getX() - mouseEvent.getX() > threshold) {
+                        toUnsnap = true;
+                    }
+                }
+                if (isSnappedEast) {
+                    if (bb.getX() - mouseEvent.getX() > threshold) {
+                        toUnsnap = true;
+                    }
+                }
+                // check to see if we've exceeded the threshold to unsnap
+                //if not, do nothing
+                if (toUnsnap) {
+                    //unsnap in direction of travel
+                    if (statusBarText != "") {
+                        statusBarText += " & ";
+                    }
+                    statusBarText += "Unsnapped from WEST";
+                    for (Point2D p : overlaps.points) {
+                        p.setLocation(p.getX() + offsetX, p.getY());
+                    }
+                    grabX = mouseEvent.getX();
+                    repaint();
+                }
+
+            } else {
+                double prevGrid = Math.floor(bb.getX()/100)*100;
+                double gridDist = bb.getX() - prevGrid;
+                if (gridDist < threshold && gridDist > 0) {
+                    
+                    //SNAP
+                    if (statusBarText != "") {
+                        statusBarText += " & ";
+                    }
+                    statusBarText += "Snapped to WEST";
+                    for (Point2D p : overlaps.points) {
+                        
+                        p.setLocation(p.getX() - gridDist, p.getY());
+                    }
+                    grabX = mouseEvent.getX();
+                    isSnappedWest = true;
+                    
+                    repaint();
+                  //  isDragging = false;
+                } else {
+
+                    //no snap, just regular dragging
+                    for (Point2D p : overlaps.points) {
+                        p.setLocation(p.getX() + offsetX, p.getY());
+                    }
+                    repaint();
+                    grabX = mouseEvent.getX();
+                }
+                
+            }
+        } else if (east) {
+            if (isSnappedWest || isSnappedEast) {
+                // check to see if we've exceeded the threshold to unsnap
+                //if not, do nothing
+                toUnsnap = false;
+                if (isSnappedWest) {
+                    if (mouseEvent.getX() - bb.getX() > threshold) {
+                        toUnsnap = true;
+                    }
+                }
+                if (isSnappedEast) {
+                    if (mouseEvent.getX() - bb.getX() > threshold) {
+                        toUnsnap = true;
+                    }
+                }
+                if (toUnsnap) {
+                    //unsnap in direction of travel
+                    if (statusBarText != "") {
+                        statusBarText += " & ";
+                    }
+                    statusBarText += "Unsnapped from EAST";
+                    for (Point2D p : overlaps.points) {
+                        p.setLocation(p.getX() + offsetX, p.getY());
+                    }
+                    grabX = mouseEvent.getX();
+                    repaint();
+                }
+
+            } else {
+                double nextGrid = Math.ceil((bb.getX() + bb.getWidth())/100)*100;
+                
+                double gridDist = nextGrid - bb.getX() - bb.getWidth();
+                if (gridDist < threshold && gridDist > 0) {
+                    if (statusBarText != "") {
+                        statusBarText += " & ";
+                    }
+                    statusBarText += "Snapped to EAST";
+                    //SNAP
+                    for (Point2D p : overlaps.points) {
+                        
+                        p.setLocation(p.getX() + gridDist, p.getY());
+                    }
+                    grabX = mouseEvent.getX();
+                    isSnappedEast = true;
+                    
+                    repaint();
+                    //isDragging = false;
+                } else {
+
+                    //no snap, just regular dragging
+                    for (Point2D p : overlaps.points) {
+                        p.setLocation(p.getX() + offsetX, p.getY());
+                    }
+                    repaint();
+                    grabX = mouseEvent.getX();
+                }
+                
+            }
+        }
+        if (statusBarText != "") {
+            paintWindow.statusBar.setText(statusBarText);
+        }
+
 
 
     }

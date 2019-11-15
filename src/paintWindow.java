@@ -23,8 +23,9 @@ public class paintWindow {
     public static JMenuItem newItem = new JMenuItem("New");
 
     public static JLabel statusBar = new JLabel();
+    public static JButton lineWidthButton = new JButton("Line Width");
 
-    public static void createAndShowGUI()  {
+    private static void createAndShowGUI()  {
 
         int APP_WIDTH = 700;
         int APP_HEIGHT = 400;
@@ -252,7 +253,7 @@ public class paintWindow {
         toolPalette.add(Box.createRigidArea(new Dimension(0,10)));
 
         // Line width button
-        JButton lineWidthButton = new JButton("Line Width");
+
         lineWidthButton.addActionListener(new MyActionListener());
         lineWidthButton.addActionListener(new ActionListener() {
             @Override
